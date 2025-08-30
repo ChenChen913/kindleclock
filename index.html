@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Kindle 时钟</title>
+  <style>
+    body {
+      background-color: white;
+      color: black;
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      text-align: center;
+    }
+    #time {
+      font-size: 120px;
+      font-weight: bold;
+      margin-bottom: 30px;
+    }
+    #dateWeek {
+      font-size: 48px;
+      margin-bottom: 20px;
+    }
+    #lunar {
+      font-size: 36px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div id="time">--:--</div>
+  <div id="dateWeek">加载中...</div>
+  <div id="lunar">农历加载中...</div>
+
+  <script>
+    // 天干地支和生肖
+    var Gan = ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"];
+    var Zhi = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
+    var Animals = ["鼠","牛","虎","兔","龙","蛇","马","羊","猴","鸡","狗","猪"];
+    var lunarMonthCN = ["正月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"];
+    var lunarDayCN = ["初一","初二","初三","初四","初五","初六","初七","初八","初九","初十",
+                      "十一","十二","十三","十四","十五","十六","十七","十八","十九","二十",
+                      "廿一","廿二","廿三","廿四","廿五","廿六","廿七","廿八","廿九","三十"];
+
+    // 简单的农历换算（大部分情况下够用）
+    function solar2lunar(date) {
+      // 基准：2025年8月30日 对应 农历七月初八 乙巳蛇年
+      var baseDate = new Date(2025, 7, 30); // 月份从0开始
+      var baseLunarYear = 2025, baseMonth = 7, baseDay = 8;
+
+      // 计算偏移天数
+      var offset = Math.floor((date - baseDate) / 86400000);
+
+      // 临时处理：保持农历月日同步（简化版，不考虑闰月）
+      var lunarDay = baseDay + offset;
+      var lunarMonth = baseMonth;
+      var lunarYear = baseLunarYear;
+
+      // 每月30天的粗略换算（避免大数组）
+      while (lunarDay > 30) {
+        lunarDay -= 30;
+        lunarMonth++;
+        if (lunarMonth > 12) {
+          lunarMonth = 1;
+          lunarYear++;
+        }
+      }
+      while (lunarDay < 1) {
+        lunarDay += 30;
+        lunarMonth--;
+        if (lunarMonth < 1) {
+          lunarMonth = 12;
+          lunarYear--;
+        }
+      }
+
+      var ganIndex = (lunarYear - 4) % 10;
+      var zhiIndex = (lunarYear - 4) % 12;
+      var ganzhiYear = Gan[ganIndex] + Zhi[zhiIndex];
+      var animal = Animals[zhiIndex];
+
+      return {
+        yearStr: ganzhiYear,
+        animal: animal,
+        monthStr: lunarMonthCN[lunarMonth - 1],
+        dayStr: lunarDayCN[lunarDay - 1]
+      };
+    }
+
+    function updateClock() {
+      var now = new Date();
+      var h = String(now.getHours()).padStart(2,'0');
+      var m = String(now.getMinutes()).padStart(2,'0');
+      document.getElementById("time").textContent = h + ":" + m;
+
+      var weekdays = ["星期日","星期一","星期二","星期三","星期四","星期五","星期六"];
+      var dateStr = now.getFullYear() + "年" + 
+                    (now.getMonth()+1) + "月" + 
+                    now.getDate() + "日 " + 
+                    weekdays[now.getDay()];
+      document.getElementById("dateWeek").textContent = dateStr;
+
+      var lunar = solar2lunar(now);
+      document.getElementById("lunar").textContent =
+        lunar.yearStr + "[" + lunar.animal + "]年 农历 " + lunar.monthStr + lunar.dayStr;
+    }
+
+    updateClock();
+    setInterval(updateClock, 60000); // 每分钟刷新
+  </script>
+</body>
+</html>
