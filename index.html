@@ -3,115 +3,222 @@
 <head>
   <meta charset="UTF-8">
   <title>Kindle 时钟</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <style>
     body {
       background-color: white;
       color: black;
-      font-family: sans-serif;
+      font-family: Arial, sans-serif;
       margin: 0;
       padding: 0;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      min-height: 100vh;
       text-align: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .clock-container {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      flex: 1;
+      width: 100%;
     }
     #time {
-      font-size: 120px;
+      font-size: 150px; /* 放大时间字体 */
       font-weight: bold;
-      margin-bottom: 30px;
+      margin-bottom: 40px;
+      line-height: 1.2;
     }
     #dateWeek {
-      font-size: 48px;
-      margin-bottom: 20px;
+      font-size: 58px; /* 放大日期字体 */
+      margin-bottom: 30px;
+      line-height: 1.3;
     }
     #lunar {
-      font-size: 36px;
-      color: #333;
+      font-size: 46px; /* 放大农历字体 */
+      color: #444;
+      margin-bottom: 20px;
+      line-height: 1.3;
+    }
+    .refresh-note {
+      font-size: 28px;
+      color: #666;
+      margin-top: 30px;
     }
   </style>
 </head>
 <body>
-  <div id="time">--:--</div>
-  <div id="dateWeek">加载中...</div>
-  <div id="lunar">农历加载中...</div>
+  <div class="clock-container">
+    <div id="time">--:--</div>
+    <div id="dateWeek">加载中...</div>
+    <div id="lunar">农历加载中...</div>
+    <div class="refresh-note">点击屏幕刷新时间</div>
+  </div>
 
   <script>
-    // 天干地支和生肖
-    var Gan = ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"];
-    var Zhi = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
-    var Animals = ["鼠","牛","虎","兔","龙","蛇","马","羊","猴","鸡","狗","猪"];
-    var lunarMonthCN = ["正月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"];
-    var lunarDayCN = ["初一","初二","初三","初四","初五","初六","初七","初八","初九","初十",
-                      "十一","十二","十三","十四","十五","十六","十七","十八","十九","二十",
-                      "廿一","廿二","廿三","廿四","廿五","廿六","廿七","廿八","廿九","三十"];
+    // 农历计算相关数据
+    var lunarInfo = [
+      0x04bd8, 0x04ae0, 0x0a570, 0x054d5, 0x0d260, 0x0d950, 0x16554, 0x056a0, 0x09ad0, 0x055d2,
+      0x04ae0, 0x0a5b6, 0x0a4d0, 0x0d250, 0x1d255, 0x0b540, 0x0d6a0, 0x0ada2, 0x095b0, 0x14977,
+      0x04970, 0x0a4b0, 0x0b4b5, 0x06a50, 0x06d40, 0x1ab54, 0x02b60, 0x09570, 0x052f2, 0x04970,
+      0x06566, 0x0d4a0, 0x0ea50, 0x06e95, 0x05ad0, 0x02b60, 0x186e3, 0x092e0, 0x1c8d7, 0x0c950,
+      0x0d4a0, 0x1d8a6, 0x0b550, 0x056a0, 0x1a5b4, 0x025d0, 0x092d0, 0x0d2b2, 0x0a950, 0x0b557
+    ];
+    
+    var Gan = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"];
+    var Zhi = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"];
+    var Animals = ["鼠", "牛", "虎", "兔", "龙", "蛇", "马", "羊", "猴", "鸡", "狗", "猪"];
+    var lunarMonthCN = ["正", "二", "三", "四", "五", "六", "七", "八", "九", "十", "冬", "腊"];
+    var lunarDayCN = ["初一", "初二", "初三", "初四", "初五", "初六", "初七", "初八", "初九", "初十",
+                      "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八", "十九", "二十",
+                      "廿一", "廿二", "廿三", "廿四", "廿五", "廿六", "廿七", "廿八", "廿九", "三十"];
 
-    // 简单的农历换算（大部分情况下够用）
-    function solar2lunar(date) {
-      // 基准：2025年8月30日 对应 农历七月初八 乙巳蛇年
-      var baseDate = new Date(2025, 7, 30); // 月份从0开始
-      var baseLunarYear = 2025, baseMonth = 7, baseDay = 8;
+    // 补零函数
+    function padZero(num) {
+      return (num < 10 ? '0' : '') + num;
+    }
 
-      // 计算偏移天数
-      var offset = Math.floor((date - baseDate) / 86400000);
-
-      // 临时处理：保持农历月日同步（简化版，不考虑闰月）
-      var lunarDay = baseDay + offset;
-      var lunarMonth = baseMonth;
-      var lunarYear = baseLunarYear;
-
-      // 每月30天的粗略换算（避免大数组）
-      while (lunarDay > 30) {
-        lunarDay -= 30;
-        lunarMonth++;
-        if (lunarMonth > 12) {
-          lunarMonth = 1;
-          lunarYear++;
+    // 计算农历日期
+    function getLunarDate(date) {
+      var year = date.getFullYear();
+      var month = date.getMonth() + 1;
+      var day = date.getDate();
+      
+      // 计算农历年、月、日
+      var i, leap = 0, temp = 0;
+      var offset = (Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) - Date.UTC(1900, 0, 31)) / 86400000;
+      
+      for (i = 1900; i < 2101 && offset > 0; i++) {
+        temp = lYearDays(i);
+        offset -= temp;
+      }
+      
+      if (offset < 0) {
+        offset += temp;
+        i--;
+      }
+      
+      // 农历年
+      var lunarYear = i;
+      
+      // 计算闰月
+      leap = leapMonth(i);
+      var isLeap = false;
+      
+      for (i = 1; i < 13 && offset > 0; i++) {
+        // 闰月
+        if (leap > 0 && i === (leap + 1) && isLeap === false) {
+          --i;
+          isLeap = true;
+          temp = leapDays(lunarYear);
+        } else {
+          temp = monthDays(lunarYear, i);
+        }
+        
+        // 解除闰月
+        if (isLeap === true && i === (leap + 1)) isLeap = false;
+        
+        offset -= temp;
+      }
+      
+      if (offset === 0 && leap > 0 && i === leap + 1) {
+        if (isLeap) {
+          isLeap = false;
+        } else {
+          isLeap = true;
+          --i;
         }
       }
-      while (lunarDay < 1) {
-        lunarDay += 30;
-        lunarMonth--;
-        if (lunarMonth < 1) {
-          lunarMonth = 12;
-          lunarYear--;
-        }
+      
+      if (offset < 0) {
+        offset += temp;
+        --i;
       }
-
+      
+      // 农历月
+      var lunarMonth = i;
+      // 农历日
+      var lunarDay = offset + 1;
+      
+      // 天干地支年
       var ganIndex = (lunarYear - 4) % 10;
       var zhiIndex = (lunarYear - 4) % 12;
       var ganzhiYear = Gan[ganIndex] + Zhi[zhiIndex];
       var animal = Animals[zhiIndex];
-
+      
       return {
         yearStr: ganzhiYear,
         animal: animal,
-        monthStr: lunarMonthCN[lunarMonth - 1],
+        monthStr: (isLeap ? "闰" : "") + lunarMonthCN[lunarMonth - 1] + "月",
         dayStr: lunarDayCN[lunarDay - 1]
       };
     }
 
+    // 返回农历年一整年的总天数
+    function lYearDays(y) {
+      var i, sum = 348;
+      for (i = 0x8000; i > 0x8; i >>= 1) {
+        sum += (lunarInfo[y - 1900] & i) ? 1 : 0;
+      }
+      return (sum + leapDays(y));
+    }
+
+    // 返回农历年闰月的天数
+    function leapDays(y) {
+      if (leapMonth(y)) {
+        return ((lunarInfo[y - 1900] & 0x10000) ? 30 : 29);
+      } else {
+        return 0;
+      }
+    }
+
+    // 返回农历年闰哪个月，没有闰月返回0
+    function leapMonth(y) {
+      return (lunarInfo[y - 1900] & 0xf);
+    }
+
+    // 返回农历年某月的天数
+    function monthDays(y, m) {
+      return ((lunarInfo[y - 1900] & (0x10000 >> m)) ? 30 : 29);
+    }
+
     function updateClock() {
       var now = new Date();
-      var h = String(now.getHours()).padStart(2,'0');
-      var m = String(now.getMinutes()).padStart(2,'0');
+      var h = padZero(now.getHours());
+      var m = padZero(now.getMinutes());
       document.getElementById("time").textContent = h + ":" + m;
 
-      var weekdays = ["星期日","星期一","星期二","星期三","星期四","星期五","星期六"];
+      var weekdays = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
       var dateStr = now.getFullYear() + "年" + 
-                    (now.getMonth()+1) + "月" + 
+                    (now.getMonth() + 1) + "月" + 
                     now.getDate() + "日 " + 
                     weekdays[now.getDay()];
       document.getElementById("dateWeek").textContent = dateStr;
 
-      var lunar = solar2lunar(now);
-      document.getElementById("lunar").textContent =
-        lunar.yearStr + "[" + lunar.animal + "]年 农历 " + lunar.monthStr + lunar.dayStr;
+      try {
+        var lunar = getLunarDate(now);
+        document.getElementById("lunar").textContent =
+          lunar.yearStr + "[" + lunar.animal + "]年 农历 " + lunar.monthStr + lunar.dayStr;
+      } catch (e) {
+        document.getElementById("lunar").textContent = "农历计算错误";
+      }
     }
 
+    // 初始更新
     updateClock();
-    setInterval(updateClock, 60000); // 每分钟刷新
+    
+    // 每分钟刷新一次
+    setInterval(updateClock, 60000);
+    
+    // 添加点击刷新功能
+    document.body.addEventListener('click', function() {
+      updateClock();
+    });
   </script>
 </body>
 </html>
