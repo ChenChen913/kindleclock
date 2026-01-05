@@ -14,6 +14,6 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           # 这里引用刚才设置的 Secret
-          anthropic_api_key: ${{ secrets.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 }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           # 或者如果你用的是 OAuth Token:
           # claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
