@@ -8,16 +8,22 @@ on:
 jobs:
   claude:
     runs-on: ubuntu-latest
-    permissions:    # <--- 新增：为了保险起见，显式给予权限
-      contents: read
+    permissions:
+      contents: write       # 必须有读写权限
       pull-requests: write
       issues: write
+      
     steps:
+      # 【新增步骤】必须先检出代码，否则 Claude 没法干活
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0    # 关键参数：0 表示拉取所有历史记录，防止 git fetch 报错
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # 这是你原本的步骤
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
         with:
-          # 1. 这个需要你手动去获取并配置
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          
-          # 2. 这个不需要你配置，直接照抄！GitHub 会自动生成
           github_token: ${{ secrets.GITHUB_TOKEN }}
