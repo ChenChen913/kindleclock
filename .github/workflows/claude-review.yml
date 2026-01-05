@@ -1,0 +1,31 @@
+name: Claude Code Helper
+
+on:
+  issue_comment:
+    types: [created] # 当有人在 issue 或 PR 里发评论时触发
+
+jobs:
+  claude_assist:
+    # 只有当评论包含 @claude 时才运行
+    if: contains(github.event.comment.body, '@claude')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 允许机器人修改代码
+      pull-requests: write # 允许机器人回帖
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run Claude Code Action
+        # 注意：这里需要填 Anthropic 官方提供的 Action 地址
+        # 假设是 anthropic-ai/claude-code-action@v1
+        uses: anthropic-ai/claude-code-action@v1 
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
