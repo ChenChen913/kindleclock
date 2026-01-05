@@ -19,7 +19,7 @@ def main():
     """主函数：随机选择并打印一句名言"""
 
     # 名言列表（包含中文和英文经典名言）
-    quotes = [
+    quote_list = [
         "学而时习之，不亦说乎？ - 孔子",
         "知之者不如好之者，好之者不如乐之者。 - 孔子",
         "路漫漫其修远兮，吾将上下而求索。 - 屈原",
@@ -33,12 +33,12 @@ def main():
     ]
 
     # 检查名言列表是否为空
-    if not quotes:
+    if not quote_list:
         print("错误：名言列表为空")
         return
 
     # 随机选择一句名言
-    random_quote = random.choice(quotes)
+    random_quote = random.choice(quote_list)
 
     # 打印名言
     print(random_quote)
