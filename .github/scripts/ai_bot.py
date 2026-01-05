@@ -1,88 +1,108 @@
 import os
 import sys
 from openai import OpenAI
-from github import Github
 
-# 配置部分
+# --- 配置区域 ---
 API_KEY = os.environ.get("DEEPSEEK_API_KEY")
-BASE_URL = "https://api.deepseek.com"  # 如果用智谱，改成 https://open.bigmodel.cn/api/paas/v4/
-MODEL_NAME = "deepseek-coder"          # 如果用智谱，改成 glm-4
+BASE_URL = "https://api.deepseek.com"
+MODEL_NAME = "deepseek-coder"
+
+def clean_code_block(text):
+    lines = text.strip().split('\n')
+    if lines and lines[0].strip().startswith("```"):
+        lines = lines[1:]
+    if lines and lines[-1].strip() == "```":
+        lines = lines[:-1]
+    return "\n".join(lines)
 
 def ai_edit_code(file_path, instruction):
     client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
     
-    # 1. 读取原文件内容
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-    except FileNotFoundError:
-        print(f"❌ 找不到文件: {file_path}")
-        return False
+    # === 关键修改：支持新建文件 ===
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+        except Exception as e:
+            print(f"❌ 读取失败: {e}")
+            return False
+        status_msg = f"正在修改现有文件: {file_path}"
+    else:
+        # 如果文件不存在，视为空文件，准备新建
+        content = "(New Empty File)"
+        status_msg = f"⚠️ 文件不存在，正在创建新文件: {file_path}"
+        # 自动创建目录（如果目录不存在）
+        os.makedirs(os.path.dirname(os.path.abspath(file_path)), exist_ok=True)
 
-    # 2. 构造提示词
+    print(f"🤖 {status_msg} ...")
+
+    # 构造提示词
     prompt = f"""
-    你是一个 Python 代码专家。请根据以下要求修改代码。
+    你是一个全能编程助手。请根据指令生成或修改文件内容。
     
-    【原文件 {file_path}】:
-    ```python
+    【目标文件】: {file_path}
+    
+    【原始内容】:
+    ```
     {content}
     ```
     
-    【修改要求】:
+    【修改指令】:
     {instruction}
     
     【输出规则】:
-    请只输出修改后的完整代码，不要包含 ```python 或 ``` 标记，不要包含任何解释性文字。直接输出代码即可。
+    1. 直接输出文件修改后的完整内容。
+    2. 不要包含 ```markdown 或 ``` 标记，只输出内容本身。
+    3. 如果是 Markdown 文件，请保持良好的 Markdown 格式。
     """
 
-    print(f"🤖 正在思考如何修改 {file_path} ...")
-    
-    # 3. 调用 DeepSeek
-    response = client.chat.completions.create(
-        model=MODEL_NAME,
-        messages=[
-            {"role": "system", "content": "You are a helpful code assistant."},
-            {"role": "user", "content": prompt},
-        ],
-        stream=False,
-        temperature=0.1
-    )
-    
-    new_code = response.choices[0].message.content.strip()
-    
-    # 清理可能存在的 markdown 标记
-    if new_code.startswith("```"):
-        lines = new_code.split('\n')
-        if lines[0].startswith("```"): lines = lines[1:]
-        if lines[-1].startswith("```"): lines = lines[:-1]
-        new_code = "\n".join(lines)
+    try:
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant. Output ONLY the file content."},
+                {"role": "user", "content": prompt},
+            ],
+            stream=False,
+            temperature=0.1
+        )
+        new_code = response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"❌ API 调用失败: {e}")
+        return False
 
-    # 4. 写入文件
-    with open(file_path, 'w', encoding='utf-8') as f:
-        f.write(new_code)
-    
-    print(f"✅ 文件 {file_path} 已更新！")
-    return True
+    final_code = clean_code_block(new_code)
+
+    # 写入文件
+    try:
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(final_code)
+        print(f"✅ 成功写入: {file_path}")
+        return True
+    except Exception as e:
+        print(f"❌ 写入失败: {e}")
+        return False
 
 if __name__ == "__main__":
-    # 获取评论内容
     comment_body = os.environ.get("COMMENT_BODY", "")
+    trigger = "/bot update"
     
-    # 解析指令，格式必须是：/bot update 文件名: 修改要求
-    # 例如：/bot update hello.py: 把变量名改成蛇形命名法
-    if "/bot update" in comment_body:
+    if trigger in comment_body:
         try:
-            # 简单的文本解析
-            parts = comment_body.split("/bot update")[1].strip().split(":", 1)
-            target_file = parts[0].strip()
-            instruction = parts[1].strip()
-            
+            command_part = comment_body.split(trigger)[1].strip()
+            if ":" not in command_part:
+                print("❌ 格式错误。正确格式: /bot update 文件名: 指令")
+                sys.exit(1)
+
+            target_file, instruction = command_part.split(":", 1)
+            target_file = target_file.strip()
+            instruction = instruction.strip()
+
             success = ai_edit_code(target_file, instruction)
             if not success:
                 sys.exit(1)
         except Exception as e:
-            print(f"❌ 解析指令失败: {e}")
-            print("正确格式示例: /bot update hello.py: 修改要求")
+            print(f"❌ 执行出错: {e}")
             sys.exit(1)
     else:
-        print("未检测到 /bot update 指令，跳过执行。")
+        print("无有效指令")
