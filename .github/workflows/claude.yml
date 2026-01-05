@@ -4,16 +4,20 @@ on:
     types: [created]
   pull_request:
     types: [opened, synchronize]
-  # 你可以根据需要添加其他触发条件
 
 jobs:
   claude:
     runs-on: ubuntu-latest
+    permissions:    # <--- 新增：为了保险起见，显式给予权限
+      contents: read
+      pull-requests: write
+      issues: write
     steps:
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
         with:
-          # 这里引用刚才设置的 Secret
+          # 1. 这个需要你手动去获取并配置
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          # 或者如果你用的是 OAuth Token:
-          # claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          
+          # 2. 这个不需要你配置，直接照抄！GitHub 会自动生成
+          github_token: ${{ secrets.GITHUB_TOKEN }}
