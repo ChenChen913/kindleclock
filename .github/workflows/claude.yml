@@ -27,3 +27,5 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          # 【新增这行】开启详细日志，这样如果报错，会直接把“为什么报错”打印出来
+          show_full_output: true
