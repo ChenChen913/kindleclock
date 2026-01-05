@@ -15,9 +15,12 @@ if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 
-def main():
-    """主函数：随机选择并打印一句名言"""
-
+def get_random_quote():
+    """获取随机名言
+    
+    返回:
+        str: 随机选择的名言字符串
+    """
     # 名言列表（包含中文和英文经典名言）
     quote_list = [
         "学而时习之，不亦说乎？ - 孔子",
@@ -34,12 +37,17 @@ def main():
 
     # 检查名言列表是否为空
     if not quote_list:
-        print("错误：名言列表为空")
-        return
+        return "错误：名言列表为空"
 
     # 随机选择一句名言
-    random_quote = random.choice(quote_list)
+    return random.choice(quote_list)
 
+
+def main():
+    """主函数：随机选择并打印一句名言"""
+    # 获取随机名言
+    random_quote = get_random_quote()
+    
     # 打印名言
     print(random_quote)
 
